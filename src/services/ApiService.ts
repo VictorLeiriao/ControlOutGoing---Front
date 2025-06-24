@@ -1,5 +1,5 @@
 export interface LoginRequest {
-  username: string;
+  userName: string;
   password: string;
 }
 
@@ -8,14 +8,14 @@ export interface LoginResponse {
   token?: string;
   user?: {
     id: string;
-    username: string;
+    userName: string;
     email?: string;
   };
   message?: string;
 }
 
 export interface RegisterRequest {
-  username: string;
+  userName: string;
   email: string;
   document: string;
   password: string;
@@ -26,7 +26,7 @@ export interface RegisterResponse {
   token?: string;
   user?: {
     id: string;
-    username: string;
+    userName: string;
     email: string;
   };
   message?: string;
@@ -42,7 +42,7 @@ class ApiService {
   private baseUrl: string;
   private token: string | null = null;
 
-  constructor(baseUrl: string = 'http://localhost:3001/api') {
+  constructor(baseUrl: string = 'https://localhost:7188') {
     this.baseUrl = baseUrl;
     this.token = localStorage.getItem('authToken');
   }
@@ -99,7 +99,7 @@ class ApiService {
   // Método para realizar login
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
-      const response = await this.makeRequest<LoginResponse>('/auth/login', {
+      const response = await this.makeRequest<LoginResponse>('/user/login', {
         method: 'POST',
         body: JSON.stringify(credentials),
       });
@@ -119,7 +119,8 @@ class ApiService {
   // Método para realizar cadastro
   async register(userData: RegisterRequest): Promise<RegisterResponse> {
     try {
-      const response = await this.makeRequest<RegisterResponse>('/auth/register', {
+      console.log(userData);
+      const response = await this.makeRequest<RegisterResponse>('/User', {
         method: 'POST',
         body: JSON.stringify(userData),
       });
@@ -140,7 +141,7 @@ class ApiService {
   async logout(): Promise<void> {
     try {
       // Opcional: chamar endpoint de logout no servidor
-      await this.makeRequest('/auth/logout', {
+      await this.makeRequest('/user/logout', {
         method: 'POST',
       });
     } catch (error) {
@@ -158,7 +159,7 @@ class ApiService {
     }
 
     try {
-      await this.makeRequest('/auth/validate', {
+      await this.makeRequest('/user/validate', {
         method: 'GET',
       });
       return true;

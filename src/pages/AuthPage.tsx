@@ -11,12 +11,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   const [error, setError] = useState<string>('');
   
   const [loginForm, setLoginForm] = useState<LoginRequest>({
-    username: '',
+    userName: '',
     password: ''
   });
   
   const [registerForm, setRegisterForm] = useState<RegisterRequest>({
-    username: '',
+    userName: '',
     email: '',
     document: '',
     password: ''
@@ -130,15 +130,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
           {activeTab === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="userName" className="block text-sm font-medium text-gray-700 mb-1">
                   Usuário
                 </label>
                 <input
                   type="text"
-                  id="username"
+                  id="userName"
                   className="input"
-                  value={loginForm.username}
-                  onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                  value={loginForm.userName}
+                  onChange={(e) => setLoginForm({ ...loginForm, userName: e.target.value })}
                   disabled={isLoading}
                   required
                 />
@@ -171,15 +171,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
           {activeTab === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
-                <label htmlFor="reg-username" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="reg-userName" className="block text-sm font-medium text-gray-700 mb-1">
                   Usuário
                 </label>
                 <input
                   type="text"
-                  id="reg-username"
+                  id="reg-userName"
                   className="input"
-                  value={registerForm.username}
-                  onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
+                  value={registerForm.userName}
+                  onChange={(e) => setRegisterForm({ ...registerForm, userName: e.target.value })}
                   disabled={isLoading}
                   required
                 />
