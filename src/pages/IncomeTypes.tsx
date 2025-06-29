@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Edit, Trash2 } from 'lucide-react';
+import apiService, { ApiError } from '../services/ApiService';
 
 interface IncomeType {
   id: number;
@@ -19,16 +20,40 @@ const IncomeTypes: React.FC = () => {
     { id: 3, name: 'Investimentos', description: 'Rendimentos de investimentos' }
   ]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState<string>('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
     if (form.name && form.description) {
-      const newIncomeType: IncomeType = {
-        id: Date.now(),
-        name: form.name,
-        description: form.description
-      };
-      setIncomeTypes([...incomeTypes, newIncomeType]);
-      setForm({ name: '', description: '' });
+      try {
+        const newIncomeTypeData = {
+          name: form.name,
+          description: form.description
+        };
+
+        await apiService.authenticatedRequest<IncomeType>('/income', {
+          method: 'POST',
+          body: JSON.stringify(newIncomeTypeData),
+        });
+
+        // Assuming success if no error is thrown by apiService.authenticatedRequest
+        // Assign a client-side ID for display purposes as the API response structure for success was not specified
+        const newIncomeType: IncomeType = {
+          id: Date.now(),
+          name: form.name,
+          description: form.description
+        };
+        setIncomeTypes([...incomeTypes, newIncomeType]);
+        setForm({ name: '', description: '' });
+        console.log('Tipo de renda salvo com sucesso!');
+
+      } catch (error) {
+        const apiError = error as ApiError;
+        setError(apiError.message || 'Erro ao salvar tipo de renda.');
+        console.error('Erro ao salvar tipo de renda:', error);
+      }
     }
   };
 
@@ -43,7 +68,20 @@ const IncomeTypes: React.FC = () => {
         <p className="text-gray-600">Gerencie os tipos de renda disponíveis</p>
       </div>
 
-      {/* Formulário */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex justify-between items-center">
+            <p className="text-red-600 text-sm">{error}</p>
+            <button
+              onClick={() => setError('')}
+              className="text-red-400 hover:text-red-600 ml-2"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="card p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -82,7 +120,6 @@ const IncomeTypes: React.FC = () => {
         </form>
       </div>
 
-      {/* Tabela */}
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Tipos de Renda Cadastrados</h2>
@@ -116,7 +153,7 @@ const IncomeTypes: React.FC = () => {
                       <button className="text-primary-600 hover:text-primary-900 transition-colors">
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDelete(incomeType.id)}
                         className="text-red-600 hover:text-red-900 transition-colors"
                       >

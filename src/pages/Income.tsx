@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Edit, Trash2 } from 'lucide-react';
+import apiService, { ApiError } from '../services/ApiService'; // Import apiService and ApiError
 
 interface IncomeEntry {
   id: number;
@@ -28,17 +29,43 @@ const Income: React.FC = () => {
     { id: 4, name: 'Outros' }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState<string>(''); // State for error messages
+
+  const handleSubmit = async (e: React.FormEvent) => { // Make function async
     e.preventDefault();
+    setError(''); // Clear previous errors
+
     if (form.incomeType && form.value && form.date) {
-      const newIncome: IncomeEntry = {
-        id: Date.now(),
-        incomeType: form.incomeType,
+      const selectedIncomeType = incomeTypes.find(type => type.name === form.incomeType);
+      if (!selectedIncomeType) {
+        setError('Tipo de renda selecionado não é válido.');
+        return;
+      }
+
+      const incomeDataForApi = {
         value: parseFloat(form.value),
-        date: form.date
+        idIncome: selectedIncomeType.id,
+        date: new Date(form.date).toISOString() // Convert date to ISO string
       };
-      setIncomes([...incomes, newIncome]);
-      setForm({ incomeType: '', value: '', date: '' });
+
+      try {
+        await apiService.createUserIncome(incomeDataForApi); // Call the new API method
+
+        // Add to local state only after successful API call
+        const newIncome: IncomeEntry = {
+          id: Date.now(), // Generate a client-side ID for new entry
+          incomeType: form.incomeType,
+          value: parseFloat(form.value),
+          date: form.date // Keep original date format for display
+        };
+        setIncomes([...incomes, newIncome]);
+        setForm({ incomeType: '', value: '', date: '' });
+        console.log('Renda lançada com sucesso!');
+      } catch (err) {
+        const apiError = err as ApiError;
+        setError(apiError.message || 'Erro ao lançar renda.');
+        console.error('Erro ao lançar renda:', err);
+      }
     }
   };
 
@@ -63,6 +90,20 @@ const Income: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Lançar Renda</h1>
         <p className="text-gray-600">Registre suas fontes de renda</p>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex justify-between items-center">
+                <p className="text-red-600 text-sm">{error}</p>
+                <button
+                  onClick={() => setError('')}
+                  className="text-red-400 hover:text-red-600 ml-2"
+                >
+                  ×
+                </button>
+              </div>
+        </div>
+      )}
 
       {/* Formulário */}
       <div className="card p-6">

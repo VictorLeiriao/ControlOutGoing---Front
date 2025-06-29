@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Edit, Trash2 } from 'lucide-react';
+import apiService, { ApiError } from '../services/ApiService'; // Import apiService and ApiError
 
 interface ExpenseEntry {
   id: number;
@@ -20,73 +21,111 @@ const Expenses: React.FC = () => {
   });
 
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([
-    { 
-      id: 1, 
-      description: 'Supermercado', 
-      value: 350, 
-      date: '2024-01-02', 
-      category: 'Alimentação', 
-      subcategory: 'Compras' 
+    {
+      id: 1,
+      description: 'Supermercado',
+      value: 350,
+      date: '2024-01-02',
+      category: 'Alimentação',
+      subcategory: 'Compras'
     },
-    { 
-      id: 2, 
-      description: 'Combustível', 
-      value: 200, 
-      date: '2024-01-05', 
-      category: 'Transporte', 
-      subcategory: 'Combustível' 
+    {
+      id: 2,
+      description: 'Combustível',
+      value: 200,
+      date: '2024-01-05',
+      category: 'Transporte',
+      subcategory: 'Combustível'
     },
-    { 
-      id: 3, 
-      description: 'Aluguel', 
-      value: 1000, 
-      date: '2024-01-01', 
-      category: 'Moradia', 
-      subcategory: 'Aluguel' 
+    {
+      id: 3,
+      description: 'Aluguel',
+      value: 1000,
+      date: '2024-01-01',
+      category: 'Moradia',
+      subcategory: 'Aluguel'
     }
   ]);
 
   const categories = [
-    { 
-      id: 1, 
+    {
+      id: 1,
       name: 'Alimentação',
       subcategories: ['Compras', 'Restaurantes', 'Delivery']
     },
-    { 
-      id: 2, 
+    {
+      id: 2,
       name: 'Transporte',
       subcategories: ['Combustível', 'Transporte Público', 'Manutenção']
     },
-    { 
-      id: 3, 
+    {
+      id: 3,
       name: 'Moradia',
       subcategories: ['Aluguel', 'Condomínio', 'Utilities']
     },
-    { 
-      id: 4, 
+    {
+      id: 4,
       name: 'Lazer',
       subcategories: ['Cinema', 'Viagens', 'Hobbies']
     }
   ];
+
+  const [error, setError] = useState<string>(''); // State for error messages
 
   const getSubcategories = (categoryName: string) => {
     const category = categories.find(cat => cat.name === categoryName);
     return category ? category.subcategories : [];
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => { // Make function async
     e.preventDefault();
-    if (form.description && form.value && form.date && form.category && form.subcategory) {
-      const newExpense: ExpenseEntry = {
-        id: Date.now(),
+    setError(''); // Clear previous errors
+
+    if (form.description && form.value && form.date && form.category) {
+      const selectedCategory = categories.find(cat => cat.name === form.category);
+      if (!selectedCategory) {
+        setError('Categoria selecionada não é válida.');
+        return;
+      }
+
+      let idSubCategory: number | null = null;
+      if (form.subcategory) {
+        // IMPORTANT: Subcategories currently do not have explicit IDs in the client-side data.
+        // Sending 0 as a placeholder ID. You might need to adjust your backend
+        // to handle this 0 or update your client-side data structure to include subcategory IDs.
+        idSubCategory = 0;
+      }
+
+      const expenseDataForApi = {
         description: form.description,
         value: parseFloat(form.value),
-        date: form.date,
-        category: form.category,
-        subcategory: form.subcategory
+        date: new Date(form.date).toISOString(), // Convert date to ISO string
+        idCategory: selectedCategory.id,
+        idSubCategory: idSubCategory
       };
-      setExpenses([...expenses, newExpense]);
-      setForm({ description: '', value: '', date: '', category: '', subcategory: '' });
+
+      try {
+        await apiService.createExpense(expenseDataForApi); // Call the new API method
+
+        // Add to local state only after successful API call
+        const newExpense: ExpenseEntry = {
+          id: Date.now(), // Generate a client-side ID for new entry
+          description: form.description,
+          value: parseFloat(form.value),
+          date: form.date, // Keep original date format for display
+          category: form.category,
+          subcategory: form.subcategory
+        };
+        setExpenses([...expenses, newExpense]);
+        setForm({ description: '', value: '', date: '', category: '', subcategory: '' });
+        console.log('Gasto lançado com sucesso!');
+      } catch (err) {
+        const apiError = err as ApiError;
+        setError(apiError.message || 'Erro ao lançar gasto.');
+        console.error('Erro ao lançar gasto:', err);
+      }
+    } else {
+      setError('Por favor, preencha todos os campos obrigatórios (Descrição, Valor, Data, Categoria).');
     }
   };
 
@@ -115,6 +154,20 @@ const Expenses: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Lançar Gasto</h1>
         <p className="text-gray-600">Registre seus gastos e despesas</p>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex justify-between items-center">
+            <p className="text-red-600 text-sm">{error}</p>
+            <button
+              onClick={() => setError('')}
+              className="text-red-400 hover:text-red-600 ml-2"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Formulário */}
       <div className="card p-6">
@@ -189,7 +242,7 @@ const Expenses: React.FC = () => {
                 className="input"
                 value={form.subcategory}
                 onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
-                required
+                // Removed 'required' attribute here
                 disabled={!form.category}
               >
                 <option value="">Selecione uma subcategoria</option>
@@ -261,7 +314,7 @@ const Expenses: React.FC = () => {
                       <button className="text-primary-600 hover:text-primary-900 transition-colors">
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDelete(expense.id)}
                         className="text-red-600 hover:text-red-900 transition-colors"
                       >

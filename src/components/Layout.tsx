@@ -6,7 +6,8 @@ import {
   DollarSign, 
   Receipt, 
   LogOut,
-  Wallet
+  Wallet,
+  Tag // Imported Tag icon for Expense Categories
 } from 'lucide-react';
 import apiService from '../services/ApiService';
 
@@ -23,6 +24,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
     { name: 'Tipos de Renda', href: '/income-types', icon: TrendingUp },
     { name: 'Rendas', href: '/income', icon: DollarSign },
     { name: 'Gastos', href: '/expenses', icon: Receipt },
+    { name: 'Categorias de Gastos', href: '/expense-categories', icon: Tag }, // New navigation item
   ];
 
   const handleLogout = async () => {

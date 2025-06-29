@@ -38,6 +38,58 @@ export interface ApiError {
   status?: number;
 }
 
+export interface IncomeTypeRequest {
+  name: string;
+  description: string;
+}
+
+export interface IncomeTypeResponse {
+  // Assuming a 200 OK means a successful operation,
+  // the response body might be empty or contain a simple success message.
+  // Adjust this interface if the backend returns specific data on success.
+}
+
+export interface UserIncomeRequest {
+  value: number;
+  idIncome: number;
+  date: string; // ISO 8601 format
+}
+
+export interface UserIncomeResponse {
+  // Assuming 200 OK means a successful operation,
+  // the response body might be empty or contain a simple success message.
+}
+
+export interface ExpenseCategory {
+  id: number; // Assuming the backend returns an ID for existing categories
+  name: string;
+}
+
+export interface ExpenseCategoryRequest {
+  name: string;
+}
+
+export interface ExpenseCategoryResponse {
+  // Assuming 200 OK means a successful operation for POST
+  // The response might be empty or return the created category with an ID
+  id?: number;
+  name?: string;
+}
+
+// New interfaces for Expense
+export interface ExpenseRequest {
+  description: string;
+  value: number;
+  date: string; // ISO 8601 format
+  idCategory: number;
+  idSubCategory: number | null; // Can be null
+}
+
+export interface ExpenseResponse {
+  // Assuming 200 OK means a successful operation
+  // The response might be empty or return the created expense with an ID
+}
+
 class ApiService {
   private baseUrl: string;
   private token: string | null = null;
@@ -83,7 +135,15 @@ class ApiService {
         } as ApiError;
       }
 
-      return await response.json();
+      // Handle cases where response might be 204 No Content or similar
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      } else {
+        // Return an empty object for successful responses with no content
+        return {} as T;
+      }
+
     } catch (error) {
       if (error && typeof error === 'object' && 'success' in error) {
         throw error;
@@ -195,6 +255,88 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<T> {
     return this.makeRequest<T>(endpoint, options);
+  }
+
+  // Method for creating an income type
+  async createIncomeType(incomeTypeData: IncomeTypeRequest): Promise<IncomeTypeResponse> {
+    try {
+      const response = await this.makeRequest<IncomeTypeResponse>('/income', {
+        method: 'POST',
+        body: JSON.stringify(incomeTypeData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao criar tipo de renda:', error);
+      throw error;
+    }
+  }
+
+  // Method for creating a user income entry
+  async createUserIncome(incomeData: UserIncomeRequest): Promise<UserIncomeResponse> {
+    try {
+      const response = await this.makeRequest<UserIncomeResponse>('/User/userincome', {
+        method: 'POST',
+        body: JSON.stringify(incomeData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao lançar renda do usuário:', error);
+      throw error;
+    }
+  }
+
+  // Method for creating an expense category
+  async createExpenseCategory(categoryData: ExpenseCategoryRequest): Promise<ExpenseCategoryResponse> {
+    try {
+      const response = await this.makeRequest<ExpenseCategoryResponse>('/Category', {
+        method: 'POST',
+        body: JSON.stringify(categoryData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao criar categoria de gasto:', error);
+      throw error;
+    }
+  }
+
+  // Method for getting all expense categories
+  async getExpenseCategories(): Promise<ExpenseCategory[]> {
+    try {
+      const response = await this.makeRequest<ExpenseCategory[]>('/Category', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar categorias de gasto:', error);
+      throw error;
+    }
+  }
+
+  // Method for deleting an expense category (placeholder endpoint)
+  async deleteExpenseCategory(id: number): Promise<void> {
+    try {
+      await this.makeRequest<void>(`/Category/${id}`, {
+        method: 'DELETE',
+      });
+      console.log(`Categoria ${id} excluída com sucesso.`);
+    } catch (error) {
+      console.error(`Erro ao excluir categoria ${id}:`, error);
+      throw error;
+    }
+  }
+
+  // New method for creating an expense
+  async createExpense(expenseData: ExpenseRequest): Promise<ExpenseResponse> {
+    try {
+      const response = await this.makeRequest<ExpenseResponse>('/OutGoing', {
+        method: 'POST',
+        body: JSON.stringify(expenseData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao criar gasto:', error);
+      throw error;
+    }
   }
 }
 

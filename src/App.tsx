@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import IncomeTypes from './pages/IncomeTypes';
 import Income from './pages/Income';
 import Expenses from './pages/Expenses';
+import ExpenseCategories from './pages/ExpenseCategories'; // Import the new component
 import Layout from './components/Layout';
 
 function App() {
@@ -74,6 +75,19 @@ function App() {
               isAuthenticated ? (
                 <Layout onLogout={handleLogout}>
                   <Expenses />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" replace />
+              )
+            } 
+          />
+          {/* New Route for Expense Categories */}
+          <Route 
+            path="/expense-categories" 
+            element={
+              isAuthenticated ? (
+                <Layout onLogout={handleLogout}>
+                  <ExpenseCategories />
                 </Layout>
               ) : (
                 <Navigate to="/auth" replace />
