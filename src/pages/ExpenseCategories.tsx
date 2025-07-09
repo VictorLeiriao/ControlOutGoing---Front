@@ -16,9 +16,9 @@ const ExpenseCategories: React.FC = () => {
     setIsLoading(true);
     setError('');
     try {
-      const data = await apiService.getExpenseCategories();
-      setExpenseCategories(data);
-      console.log('Categorias de gastos carregadas.');
+      const response = await apiService.getExpenseCategories(); // Call the updated API method
+      setExpenseCategories(response.value); // Access the 'value' property
+      console.log('Categorias de gastos carregadas.', response.value);
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.message || 'Erro ao carregar categorias de gastos.');

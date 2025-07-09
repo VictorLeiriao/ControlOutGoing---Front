@@ -76,7 +76,14 @@ export interface ExpenseCategoryResponse {
   name?: string;
 }
 
-// New interfaces for Expense
+export interface GetExpenseCategoriesResponse {
+  value: ExpenseCategory[];
+  formatters: any[]; // You can define a more specific type if needed
+  contentTypes: any[]; // You can define a more specific type if needed
+  declaredType: any | null;
+  statusCode: number;
+}
+
 export interface ExpenseRequest {
   description: string;
   value: number;
@@ -90,11 +97,30 @@ export interface ExpenseResponse {
   // The response might be empty or return the created expense with an ID
 }
 
+// New interfaces for fetching expenses
+export interface Expense {
+  id: number;
+  idUser: number;
+  description: string;
+  value: number;
+  date: string;
+  idCategory: number;
+  idSubCategory: number | null;
+}
+
+export interface GetExpensesResponse {
+  value: Expense[];
+  formatters: any[];
+  contentTypes: any[];
+  declaredType: null;
+  statusCode: number;
+}
+
 class ApiService {
   private baseUrl: string;
   private token: string | null = null;
 
-  constructor(baseUrl: string = 'https://localhost:7188') {
+  constructor(baseUrl: string = 'https://localhost:7188/api/v1') {
     this.baseUrl = baseUrl;
     this.token = localStorage.getItem('authToken');
   }
@@ -300,9 +326,9 @@ class ApiService {
   }
 
   // Method for getting all expense categories
-  async getExpenseCategories(): Promise<ExpenseCategory[]> {
+  async getExpenseCategories(): Promise<GetExpenseCategoriesResponse> {
     try {
-      const response = await this.makeRequest<ExpenseCategory[]>('/Category', {
+      const response = await this.makeRequest<GetExpenseCategoriesResponse>('/Category', {
         method: 'GET',
       });
       return response;
@@ -325,7 +351,7 @@ class ApiService {
     }
   }
 
-  // New method for creating an expense
+  // Method for creating an expense
   async createExpense(expenseData: ExpenseRequest): Promise<ExpenseResponse> {
     try {
       const response = await this.makeRequest<ExpenseResponse>('/OutGoing', {
@@ -335,6 +361,19 @@ class ApiService {
       return response;
     } catch (error) {
       console.error('Erro ao criar gasto:', error);
+      throw error;
+    }
+  }
+
+  // New method for getting all expenses
+  async getExpenses(): Promise<GetExpensesResponse> {
+    try {
+      const response = await this.makeRequest<GetExpensesResponse>('/OutGoing', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar gastos:', error);
       throw error;
     }
   }
