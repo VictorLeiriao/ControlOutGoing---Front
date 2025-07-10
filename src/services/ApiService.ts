@@ -38,17 +38,32 @@ export interface ApiError {
   status?: number;
 }
 
+export interface IncomeType {
+  id: number;
+  name: string;
+  description: string;
+}
+
 export interface IncomeTypeRequest {
   name: string;
   description: string;
 }
 
 export interface IncomeTypeResponse {
-  // Assuming a 200 OK means a successful operation,
-  // the response body might be empty or contain a simple success message.
-  // Adjust this interface if the backend returns specific data on success.
+  id?: number;
+  name?: string;
+  description?: string;
 }
 
+export interface GetIncomeTypesResponse {
+  value: IncomeType[];
+  formatters: any[];
+  contentTypes: any[];
+  declaredType: null;
+  statusCode: number;
+}
+
+// Existing UserIncomeRequest (from previous turn)
 export interface UserIncomeRequest {
   value: number;
   idIncome: number;
@@ -61,7 +76,7 @@ export interface UserIncomeResponse {
 }
 
 export interface ExpenseCategory {
-  id: number; // Assuming the backend returns an ID for existing categories
+  id: number;
   name: string;
 }
 
@@ -70,17 +85,15 @@ export interface ExpenseCategoryRequest {
 }
 
 export interface ExpenseCategoryResponse {
-  // Assuming 200 OK means a successful operation for POST
-  // The response might be empty or return the created category with an ID
   id?: number;
   name?: string;
 }
 
 export interface GetExpenseCategoriesResponse {
   value: ExpenseCategory[];
-  formatters: any[]; // You can define a more specific type if needed
-  contentTypes: any[]; // You can define a more specific type if needed
-  declaredType: any | null;
+  formatters: any[];
+  contentTypes: any[];
+  declaredType: null;
   statusCode: number;
 }
 
@@ -93,11 +106,8 @@ export interface ExpenseRequest {
 }
 
 export interface ExpenseResponse {
-  // Assuming 200 OK means a successful operation
-  // The response might be empty or return the created expense with an ID
 }
 
-// New interfaces for fetching expenses
 export interface Expense {
   id: number;
   idUser: number;
@@ -116,6 +126,22 @@ export interface GetExpensesResponse {
   statusCode: number;
 }
 
+// New interfaces for fetching User Incomes
+export interface UserIncome {
+  id: number;
+  idIncome: number;
+  date: string;
+  value: number;
+}
+
+export interface GetUserIncomesResponse {
+  value: UserIncome[];
+  formatters: any[];
+  contentTypes: any[];
+  declaredType: null;
+  statusCode: number;
+}
+
 class ApiService {
   private baseUrl: string;
   private token: string | null = null;
@@ -125,7 +151,6 @@ class ApiService {
     this.token = localStorage.getItem('authToken');
   }
 
-  // Método privado para fazer requisições HTTP
   private async makeRequest<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -136,7 +161,6 @@ class ApiService {
       'Content-Type': 'application/json',
     };
 
-    // Adiciona token de autorização se disponível
     if (this.token) {
       defaultHeaders['Authorization'] = `Bearer ${this.token}`;
     }
@@ -161,12 +185,10 @@ class ApiService {
         } as ApiError;
       }
 
-      // Handle cases where response might be 204 No Content or similar
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         return await response.json();
       } else {
-        // Return an empty object for successful responses with no content
         return {} as T;
       }
 
@@ -182,7 +204,6 @@ class ApiService {
     }
   }
 
-  // Método para realizar login
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
       const response = await this.makeRequest<LoginResponse>('/user/login', {
@@ -190,7 +211,6 @@ class ApiService {
         body: JSON.stringify(credentials),
       });
 
-      // Se o login for bem-sucedido, armazena o token
       if (response.success && response.token) {
         this.setToken(response.token);
       }
@@ -202,7 +222,6 @@ class ApiService {
     }
   }
 
-  // Método para realizar cadastro
   async register(userData: RegisterRequest): Promise<RegisterResponse> {
     try {
       console.log(userData);
@@ -211,7 +230,6 @@ class ApiService {
         body: JSON.stringify(userData),
       });
 
-      // Se o cadastro for bem-sucedido, armazena o token
       if (response.success && response.token) {
         this.setToken(response.token);
       }
@@ -223,22 +241,18 @@ class ApiService {
     }
   }
 
-  // Método para logout
   async logout(): Promise<void> {
     try {
-      // Opcional: chamar endpoint de logout no servidor
       await this.makeRequest('/user/logout', {
         method: 'POST',
       });
     } catch (error) {
       console.error('Erro no logout:', error);
     } finally {
-      // Remove o token independentemente do resultado
       this.removeToken();
     }
   }
 
-  // Método para verificar se o token ainda é válido
   async validateToken(): Promise<boolean> {
     if (!this.token) {
       return false;
@@ -255,7 +269,6 @@ class ApiService {
     }
   }
 
-  // Métodos para gerenciar token
   setToken(token: string): void {
     this.token = token;
     localStorage.setItem('authToken', token);
@@ -270,12 +283,10 @@ class ApiService {
     localStorage.removeItem('authToken');
   }
 
-  // Método para atualizar a URL base da API
   setBaseUrl(url: string): void {
     this.baseUrl = url;
   }
 
-  // Método genérico para outras requisições autenticadas
   async authenticatedRequest<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -283,7 +294,6 @@ class ApiService {
     return this.makeRequest<T>(endpoint, options);
   }
 
-  // Method for creating an income type
   async createIncomeType(incomeTypeData: IncomeTypeRequest): Promise<IncomeTypeResponse> {
     try {
       const response = await this.makeRequest<IncomeTypeResponse>('/income', {
@@ -297,7 +307,18 @@ class ApiService {
     }
   }
 
-  // Method for creating a user income entry
+  async getIncomeTypes(): Promise<GetIncomeTypesResponse> {
+    try {
+      const response = await this.makeRequest<GetIncomeTypesResponse>('/Income', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar tipos de renda:', error);
+      throw error;
+    }
+  }
+
   async createUserIncome(incomeData: UserIncomeRequest): Promise<UserIncomeResponse> {
     try {
       const response = await this.makeRequest<UserIncomeResponse>('/User/userincome', {
@@ -311,7 +332,6 @@ class ApiService {
     }
   }
 
-  // Method for creating an expense category
   async createExpenseCategory(categoryData: ExpenseCategoryRequest): Promise<ExpenseCategoryResponse> {
     try {
       const response = await this.makeRequest<ExpenseCategoryResponse>('/Category', {
@@ -325,7 +345,6 @@ class ApiService {
     }
   }
 
-  // Method for getting all expense categories
   async getExpenseCategories(): Promise<GetExpenseCategoriesResponse> {
     try {
       const response = await this.makeRequest<GetExpenseCategoriesResponse>('/Category', {
@@ -338,7 +357,6 @@ class ApiService {
     }
   }
 
-  // Method for deleting an expense category (placeholder endpoint)
   async deleteExpenseCategory(id: number): Promise<void> {
     try {
       await this.makeRequest<void>(`/Category/${id}`, {
@@ -351,7 +369,6 @@ class ApiService {
     }
   }
 
-  // Method for creating an expense
   async createExpense(expenseData: ExpenseRequest): Promise<ExpenseResponse> {
     try {
       const response = await this.makeRequest<ExpenseResponse>('/OutGoing', {
@@ -365,7 +382,6 @@ class ApiService {
     }
   }
 
-  // New method for getting all expenses
   async getExpenses(): Promise<GetExpensesResponse> {
     try {
       const response = await this.makeRequest<GetExpensesResponse>('/OutGoing', {
@@ -377,9 +393,21 @@ class ApiService {
       throw error;
     }
   }
+
+  // New method for getting user incomes
+  async getUserIncomes(): Promise<GetUserIncomesResponse> {
+    try {
+      const response = await this.makeRequest<GetUserIncomesResponse>('/user/UserIncome', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar rendas do usuário:', error);
+      throw error;
+    }
+  }
 }
 
-// Instância singleton do serviço
 const apiService = new ApiService();
 
 export default apiService;
