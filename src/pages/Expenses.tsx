@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Edit, Trash2 } from 'lucide-react';
 import apiService, { ApiError, ExpenseCategory, Expense as ApiExpense } from '../services/ApiService';
 
@@ -6,7 +6,7 @@ interface ExpenseEntry {
   id: number;
   description: string;
   value: number;
-  date: string; // Nome da categoria para exibição
+  date: string; // String da data no formato YYYY-MM-DD para exibição
   category: string; // Nome da categoria para exibição
   subcategory: string; // Nome da subcategoria para exibição (ou vazia)
 }
@@ -16,7 +16,7 @@ const Expenses: React.FC = () => {
     description: '',
     value: '',
     date: '',
-    category: '', // Armazena o NOME da categoria selecionada
+    category: '',
     subcategory: ''
   });
 
@@ -25,6 +25,22 @@ const Expenses: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [isLoadingCategories, setIsLoadingCategories] = useState<boolean>(false);
   const [isLoadingExpenses, setIsLoadingExpenses] = useState<boolean>(false);
+
+  // Estados para o seletor de mês/ano
+  const today = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1); // Mês é 0-indexed, então +1
+  const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
+
+  const months = [
+    { value: 1, label: 'Janeiro' }, { value: 2, label: 'Fevereiro' },
+    { value: 3, label: 'Março' }, { value: 4, label: 'Abril' },
+    { value: 5, label: 'Maio' }, { value: 6, label: 'Junho' },
+    { value: 7, label: 'Julho' }, { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Setembro' }, { value: 10, label: 'Outubro' },
+    { value: 11, label: 'Novembro' }, { value: 12, label: 'Dezembro' },
+  ];
+
+  const years = Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i); // Ex: Ano atual -2 a Ano atual +2
 
   const getSubcategories = (categoryName: string) => {
     const categoriesHardcoded = [
@@ -53,32 +69,60 @@ const Expenses: React.FC = () => {
     return category ? category.subcategories : [];
   };
 
-  useEffect(() => {
-    const loadCategories = async () => {
-      setIsLoadingCategories(true);
-      setError('');
-      try {
-        const response = await apiService.getExpenseCategories();
-        setFetchedCategories(response.value);
-        console.log('Categorias de gastos carregadas do backend:', response.value);
-      } catch (err) {
-        const apiError = err as ApiError;
-        setError(apiError.message || 'Erro ao carregar categorias de gastos.');
-        console.error('Erro ao carregar categorias de gastos:', err);
-      } finally {
-        setIsLoadingCategories(false);
-      }
-    };
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
 
-    loadCategories();
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString.includes('Z') || dateString.includes('+') ? dateString : dateString + 'Z');
+    
+    const year = date.getUTCFullYear();
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const day = date.getUTCDate().toString().padStart(2, '0');
+
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleDelete = (id: number) => {
+    // Lógica para exclusão local (seria ideal chamar um endpoint DELETE da API)
+    setExpenses(expenses.filter(item => item.id !== id));
+  };
+
+  const handleCategoryChange = (categoryName: string) => {
+    setForm({ ...form, category: categoryName, subcategory: '' });
+  };
+
+  // Função para carregar as categorias (separada e estável)
+  const loadCategories = useCallback(async () => {
+    setIsLoadingCategories(true);
+    setError('');
+    try {
+      const response = await apiService.getExpenseCategories();
+      setFetchedCategories(response.value);
+      console.log('Categorias de gastos carregadas do backend:', response.value);
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message || 'Erro ao carregar categorias de gastos.');
+      console.error('Erro ao carregar categorias de gastos:', err);
+    } finally {
+      setIsLoadingCategories(false);
+    }
   }, []);
 
-  useEffect(() => {
-    const loadExpenses = async () => {
+
+  // Função para carregar os gastos (separada e memoizada)
+  const loadExpenses = useCallback(async () => {
+    // Carrega os gastos apenas se as categorias já foram carregadas
+    if (fetchedCategories.length > 0) {
       setIsLoadingExpenses(true);
       setError('');
       try {
-        const response = await apiService.getExpenses();
+        const dateParam = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+        const response = await apiService.getExpenses(dateParam);
+        
         const mappedExpenses: ExpenseEntry[] = response.value.map(apiExpense => {
           const categoryName = fetchedCategories.find(cat => cat.id === apiExpense.idCategory)?.name || 'Desconhecida';
           const subcategoryName = (apiExpense.idSubCategory === null || apiExpense.idSubCategory === 0) ? '' : 'Não Mapeada';
@@ -87,26 +131,34 @@ const Expenses: React.FC = () => {
             id: apiExpense.id,
             description: apiExpense.description,
             value: apiExpense.value,
-            date: apiExpense.date, // <--- Manter a string de data/hora completa aqui
+            date: apiExpense.date,
             category: categoryName,
             subcategory: subcategoryName,
           };
         });
         setExpenses(mappedExpenses);
-        console.log('Gastos carregados do backend:', mappedExpenses);
+        console.log(`Gastos carregados para ${selectedMonth}/${selectedYear}:`, mappedExpenses);
       } catch (err) {
         const apiError = err as ApiError;
-        setError(apiError.message || 'Erro ao carregar gastos.');
-        console.error('Erro ao carregar gastos:', err);
+        setError(apiError.message || `Erro ao carregar gastos para ${selectedMonth}/${selectedYear}.`);
+        console.error(`Erro ao carregar gastos para ${selectedMonth}/${selectedYear}:`, err);
       } finally {
         setIsLoadingExpenses(false);
       }
-    };
-
-    if (fetchedCategories.length > 0) {
-      loadExpenses();
     }
-  }, [fetchedCategories]);
+  }, [fetchedCategories, selectedMonth, selectedYear]);
+
+
+  // Efeito para carregar as categorias ao montar o componente
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+
+  // Efeito para carregar os gastos (dispara quando loadExpenses muda)
+  useEffect(() => {
+    loadExpenses();
+  }, [loadExpenses]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,24 +186,12 @@ const Expenses: React.FC = () => {
 
       try {
         await apiService.createExpense(expenseDataForApi);
-
-        const response = await apiService.getExpenses();
-        const mappedExpenses: ExpenseEntry[] = response.value.map(apiExpense => {
-          const categoryName = fetchedCategories.find(cat => cat.id === apiExpense.idCategory)?.name || 'Desconhecida';
-          const subcategoryName = (apiExpense.idSubCategory === null || apiExpense.idSubCategory === 0) ? '' : 'Não Mapeada';
-          return {
-            id: apiExpense.id,
-            description: apiExpense.description,
-            value: apiExpense.value,
-            date: apiExpense.date, // <--- Manter a string de data/hora completa aqui
-            category: categoryName,
-            subcategory: subcategoryName,
-          };
-        });
-        setExpenses(mappedExpenses);
-
-        setForm({ description: '', value: '', date: '', category: '', subcategory: '' });
         console.log('Gasto lançado com sucesso!');
+        setForm({ description: '', value: '', date: '', category: '', subcategory: '' });
+        
+        // Após criar, recarrega a lista de gastos com o filtro de data atual
+        await loadExpenses(); 
+        
       } catch (err) {
         const apiError = err as ApiError;
         setError(apiError.message || 'Erro ao lançar gasto.');
@@ -162,42 +202,7 @@ const Expenses: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: number) => {
-    setExpenses(expenses.filter(item => item.id !== id));
-  };
-
-  const handleCategoryChange = (categoryName: string) => {
-    setForm({ ...form, category: categoryName, subcategory: '' });
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
-  // Função formatDate ajustada para lidar com a data como UTC
-  const formatDate = (dateString: string) => {
-    // Adiciona 'Z' para garantir que a string seja interpretada como UTC
-    const date = new Date(dateString.includes('T') ? dateString : dateString + 'T00:00:00');
-    // Em alguns casos o toLocaleDateString pode precisar de 'UTC' na opções.
-    // Para simplificar, vou garantir que a data seja criada corretamente primeiro.
-
-    // A abordagem mais robusta para garantir a data correta é criar o objeto Date
-    // já com a informação do fuso horário UTC (se o backend envia em UTC).
-    // Se a string já tem 'Z' ou offset, Date() já lida. Se não tem e é para ser UTC, adicionamos 'Z'.
-    // Se a string não tem T, como 'YYYY-MM-DD', new Date('YYYY-MM-DD') cria local, então ajustamos.
-
-    // Para garantir que a data seja exibida no dia correto, mesmo com fuso horário negativo,
-    // podemos usar métodos UTC para construir a string no formato desejado.
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Mês é 0-indexed
-    const day = date.getDate().toString().padStart(2, '0');
-
-    return `${day}/${month}/${year}`;
-  };
-
+  const isLoadingOverall = isLoadingCategories || isLoadingExpenses;
 
   return (
     <div className="space-y-8">
@@ -220,9 +225,38 @@ const Expenses: React.FC = () => {
         </div>
       )}
 
+      {/* Seletor de Mês/Ano */}
+      <div className="card p-4 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+        <label htmlFor="month-select" className="text-sm font-medium text-gray-700">Mês:</label>
+        <select
+          id="month-select"
+          className="input w-full sm:w-auto"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(Number(e.target.value))}
+          disabled={isLoadingOverall}
+        >
+          {months.map((month) => (
+            <option key={month.value} value={month.value}>{month.label}</option>
+          ))}
+        </select>
+
+        <label htmlFor="year-select" className="text-sm font-medium text-gray-700">Ano:</label>
+        <select
+          id="year-select"
+          className="input w-full sm:w-auto"
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
+          disabled={isLoadingOverall}
+        >
+          {years.map((year) => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Formulário */}
       <div className="card p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4"> {/* Corrigido: adicionada aspa dupla final */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -275,7 +309,7 @@ const Expenses: React.FC = () => {
                 value={form.category}
                 onChange={(e) => handleCategoryChange(e.target.value)}
                 required
-                disabled={isLoadingCategories}
+                disabled={isLoadingOverall}
               >
                 <option value="">
                   {isLoadingCategories ? 'Carregando categorias...' : 'Selecione uma categoria'}
@@ -296,7 +330,7 @@ const Expenses: React.FC = () => {
                 className="input"
                 value={form.subcategory}
                 onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
-                disabled={true}
+                disabled={true} // Subcategoria sempre bloqueada
               >
                 <option value="">Selecione uma subcategoria</option>
                 {getSubcategories(form.category).map((subcategory) => (
@@ -308,7 +342,7 @@ const Expenses: React.FC = () => {
             </div>
           </div>
           <div className="flex justify-end">
-            <button type="submit" className="btn btn-primary px-6 py-2" disabled={isLoadingCategories}>
+            <button type="submit" className="btn btn-primary px-6 py-2" disabled={isLoadingOverall}>
               Lançar Gasto
             </button>
           </div>
@@ -324,7 +358,7 @@ const Expenses: React.FC = () => {
           {isLoadingExpenses ? (
             <div className="p-6 text-center text-gray-600">Carregando gastos...</div>
           ) : expenses.length === 0 ? (
-            <div className="p-6 text-center text-gray-600">Nenhum gasto lançado.</div>
+            <div className="p-6 text-center text-gray-600">Nenhum gasto lançado para o mês selecionado.</div>
           ) : (
             <table className="w-full">
               <thead className="bg-gray-50">

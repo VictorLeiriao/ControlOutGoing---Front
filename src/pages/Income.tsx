@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Edit, Trash2 } from 'lucide-react';
 import apiService, { ApiError, IncomeType, UserIncomeRequest, UserIncome as ApiUserIncome } from '../services/ApiService';
 
@@ -19,75 +19,97 @@ const Income: React.FC = () => {
   const [incomes, setIncomes] = useState<IncomeEntry[]>([]);
   const [fetchedIncomeTypes, setFetchedIncomeTypes] = useState<IncomeType[]>([]);
   const [error, setError] = useState<string>('');
-  const [isLoadingIncomeTypes, setIsLoadingIncomeTypes] = useState<boolean>(false);
-  const [isLoadingIncomes, setIsLoadingIncomes] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Estado de carregamento unificado
 
-  // Função para carregar os tipos de renda do backend
-  const loadIncomeTypes = async () => {
-    setIsLoadingIncomeTypes(true);
-    setError('');
-    try {
-      const response = await apiService.getIncomeTypes();
-      setFetchedIncomeTypes(response.value);
-      console.log('Tipos de renda carregados do backend:', response.value);
-    } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || 'Erro ao carregar tipos de renda.');
-      console.error('Erro ao carregar tipos de renda:', err);
-    } finally {
-      setIsLoadingIncomeTypes(false);
-    }
+  // Estados para o seletor de mês/ano
+  const today = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1); // Mês é 0-indexed, então +1
+  const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
+
+  const months = [
+    { value: 1, label: 'Janeiro' }, { value: 2, label: 'Fevereiro' },
+    { value: 3, label: 'Março' }, { value: 4, label: 'Abril' },
+    { value: 5, label: 'Maio' }, { value: 6, label: 'Junho' },
+    { value: 7, label: 'Julho' }, { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Setembro' }, { value: 10, label: 'Outubro' },
+    { value: 11, label: 'Novembro' }, { value: 12, label: 'Dezembro' },
+  ];
+
+  const years = Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i); // Ex: Ano atual -2 a Ano atual +2
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
   };
 
-  // Função para carregar as rendas do usuário do backend
-  const loadIncomes = async () => {
-    setIsLoadingIncomes(true);
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString.includes('Z') || dateString.includes('+') ? dateString : dateString + 'Z');
+    
+    const year = date.getUTCFullYear();
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const day = date.getUTCDate().toString().padStart(2, '0');
+
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleDelete = (id: number) => {
+    // Lógica para exclusão local (seria ideal chamar um endpoint DELETE da API)
+    setIncomes(incomes.filter(item => item.id !== id));
+  };
+
+  // Função centralizada para buscar todos os dados necessários da tela
+  const fetchAllData = useCallback(async () => {
+    setIsLoading(true);
     setError('');
     try {
-      const response = await apiService.getUserIncomes();
-      // Mapeia os dados da API para o formato IncomeEntry da tabela
-      const mappedIncomes: IncomeEntry[] = response.value.map(apiIncome => {
-        const incomeTypeName = fetchedIncomeTypes.find(type => type.id === apiIncome.idIncome)?.name || 'Desconhecido';
-        
+      // 1. Buscar Tipos de Renda
+      const incomeTypesResponse = await apiService.getIncomeTypes();
+      const loadedIncomeTypes = incomeTypesResponse.value;
+      setFetchedIncomeTypes(loadedIncomeTypes);
+
+      // 2. Buscar Rendas do Usuário (depende dos tipos de renda e da data selecionada)
+      const dateParam = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+      const incomesResponse = await apiService.getUserIncomes(dateParam);
+      
+      const mappedIncomes: IncomeEntry[] = incomesResponse.value.map(apiIncome => {
+        const incomeTypeName = loadedIncomeTypes.find(type => type.id === apiIncome.idIncome)?.name || 'Desconhecido';
         return {
           id: apiIncome.id,
           incomeType: incomeTypeName,
           value: apiIncome.value,
-          date: apiIncome.date, // Manter a string de data/hora completa aqui
+          date: apiIncome.date,
         };
       });
       setIncomes(mappedIncomes);
-      console.log('Rendas carregadas do backend:', mappedIncomes);
+      console.log(`Dados de renda carregados para ${selectedMonth}/${selectedYear}.`);
+
     } catch (err) {
       const apiError = err as ApiError;
-      setError(apiError.message || 'Erro ao carregar rendas.');
-      console.error('Erro ao carregar rendas:', err);
+      setError(apiError.message || 'Erro ao carregar dados da tela Rendas.');
+      console.error('Erro ao carregar dados da tela Rendas:', err);
     } finally {
-      setIsLoadingIncomes(false);
+      setIsLoading(false);
     }
-  };
+  }, [selectedMonth, selectedYear]); // Dependências: re-executa quando mês/ano mudam
 
-
-  // Efeito para carregar os tipos de renda ao montar o componente
+  // Efeito para disparar o carregamento inicial e recarregamentos por mudança de data
   useEffect(() => {
-    loadIncomeTypes();
-  }, []);
+    fetchAllData();
+  }, [fetchAllData]); // Dependência: a função memoizada fetchAllData
 
-  // Efeito para carregar as rendas somente após os tipos de renda estarem disponíveis
-  useEffect(() => {
-    if (fetchedIncomeTypes.length > 0) {
-      loadIncomes();
-    }
-  }, [fetchedIncomeTypes]); // Depende de fetchedIncomeTypes
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true); // Desabilitar o formulário enquanto submete
 
     if (form.incomeType && form.value && form.date) {
       const selectedIncomeType = fetchedIncomeTypes.find(type => type.name === form.incomeType);
       if (!selectedIncomeType) {
         setError('Tipo de renda selecionado não é válido ou não foi carregado.');
+        setIsLoading(false);
         return;
       }
 
@@ -99,47 +121,25 @@ const Income: React.FC = () => {
 
       try {
         await apiService.createUserIncome(incomeDataForApi);
-
-        // Após criar, recarrega a lista de rendas do backend
-        await loadIncomes();
-
-        setForm({ incomeType: '', value: '', date: '' });
         console.log('Renda lançada com sucesso!');
+        setForm({ incomeType: '', value: '', date: '' });
+        
+        // Re-fetch all data to refresh the table with the new entry and current filter
+        await fetchAllData(); 
+        
       } catch (err) {
         const apiError = err as ApiError;
         setError(apiError.message || 'Erro ao lançar renda.');
         console.error('Erro ao lançar renda:', err);
+      } finally {
+        setIsLoading(false); // Reabilitar o formulário
       }
     } else {
       setError('Por favor, preencha todos os campos obrigatórios (Tipo de Renda, Valor, Data).');
+      setIsLoading(false);
     }
   };
 
-  const handleDelete = (id: number) => {
-    // Lógica para exclusão local (seria ideal chamar um endpoint DELETE da API)
-    setIncomes(incomes.filter(item => item.id !== id));
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
-  // Função formatDate ajustada para lidar com a data do backend (YYYY-MM-DDTHH:mm:ss)
-  const formatDate = (dateString: string) => {
-    // Adiciona 'Z' para garantir que seja interpretado como UTC, se não tiver.
-    // Isso é crucial para evitar o problema de "dia -1" em fusos horários negativos.
-    const date = new Date(dateString.includes('Z') || dateString.includes('+') ? dateString : dateString + 'Z');
-    
-    // Extrai componentes da data em UTC para garantir que o dia não mude
-    const year = date.getUTCFullYear();
-    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0'); // Mês é 0-indexed
-    const day = date.getUTCDate().toString().padStart(2, '0');
-
-    return `${day}/${month}/${year}`;
-  };
 
   return (
     <div className="space-y-8">
@@ -162,6 +162,35 @@ const Income: React.FC = () => {
         </div>
       )}
 
+      {/* Seletor de Mês/Ano */}
+      <div className="card p-4 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+        <label htmlFor="month-select" className="text-sm font-medium text-gray-700">Mês:</label>
+        <select
+          id="month-select"
+          className="input w-full sm:w-auto"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(Number(e.target.value))}
+          disabled={isLoading}
+        >
+          {months.map((month) => (
+            <option key={month.value} value={month.value}>{month.label}</option>
+          ))}
+        </select>
+
+        <label htmlFor="year-select" className="text-sm font-medium text-gray-700">Ano:</label>
+        <select
+          id="year-select"
+          className="input w-full sm:w-auto"
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
+          disabled={isLoading}
+        >
+          {years.map((year) => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Formulário */}
       <div className="card p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -176,10 +205,10 @@ const Income: React.FC = () => {
                 value={form.incomeType}
                 onChange={(e) => setForm({ ...form, incomeType: e.target.value })}
                 required
-                disabled={isLoadingIncomeTypes}
+                disabled={isLoading}
               >
                 <option value="">
-                  {isLoadingIncomeTypes ? 'Carregando tipos...' : 'Selecione um tipo'}
+                  {isLoading ? 'Carregando tipos...' : 'Selecione um tipo'}
                 </option>
                 {fetchedIncomeTypes.map((type) => (
                   <option key={type.id} value={type.name}>
@@ -218,7 +247,7 @@ const Income: React.FC = () => {
             </div>
           </div>
           <div className="flex justify-end">
-            <button type="submit" className="btn btn-primary px-6 py-2" disabled={isLoadingIncomeTypes}>
+            <button type="submit" className="btn btn-primary px-6 py-2" disabled={isLoading}>
               Lançar Renda
             </button>
           </div>
@@ -231,10 +260,10 @@ const Income: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900">Rendas Lançadas</h2>
         </div>
         <div className="overflow-x-auto">
-          {isLoadingIncomes ? (
+          {isLoading ? (
             <div className="p-6 text-center text-gray-600">Carregando rendas...</div>
           ) : incomes.length === 0 ? (
-            <div className="p-6 text-center text-gray-600">Nenhuma renda lançada.</div>
+            <div className="p-6 text-center text-gray-600">Nenhuma renda lançada para o mês selecionado.</div>
           ) : (
             <table className="w-full">
               <thead className="bg-gray-50">

@@ -63,7 +63,6 @@ export interface GetIncomeTypesResponse {
   statusCode: number;
 }
 
-// Existing UserIncomeRequest (from previous turn)
 export interface UserIncomeRequest {
   value: number;
   idIncome: number;
@@ -71,8 +70,6 @@ export interface UserIncomeRequest {
 }
 
 export interface UserIncomeResponse {
-  // Assuming 200 OK means a successful operation,
-  // the response body might be empty or contain a simple success message.
 }
 
 export interface ExpenseCategory {
@@ -126,7 +123,6 @@ export interface GetExpensesResponse {
   statusCode: number;
 }
 
-// New interfaces for fetching User Incomes
 export interface UserIncome {
   id: number;
   idIncome: number;
@@ -382,9 +378,13 @@ class ApiService {
     }
   }
 
-  async getExpenses(): Promise<GetExpensesResponse> {
+  async getExpenses(dateString?: string): Promise<GetExpensesResponse> {
     try {
-      const response = await this.makeRequest<GetExpensesResponse>('/OutGoing', {
+      let endpoint = '/OutGoing';
+      if (dateString) {
+        endpoint += `?date=${dateString}`;
+      }
+      const response = await this.makeRequest<GetExpensesResponse>(endpoint, {
         method: 'GET',
       });
       return response;
@@ -394,10 +394,14 @@ class ApiService {
     }
   }
 
-  // New method for getting user incomes
-  async getUserIncomes(): Promise<GetUserIncomesResponse> {
+  // Modified method: now accepts a dateString for filtering
+  async getUserIncomes(dateString?: string): Promise<GetUserIncomesResponse> {
     try {
-      const response = await this.makeRequest<GetUserIncomesResponse>('/user/UserIncome', {
+      let endpoint = '/User/UserIncome';
+      if (dateString) {
+        endpoint += `?date=${dateString}`;
+      }
+      const response = await this.makeRequest<GetUserIncomesResponse>(endpoint, {
         method: 'GET',
       });
       return response;
