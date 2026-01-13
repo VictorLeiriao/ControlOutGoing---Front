@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Trash2 } from 'lucide-react';
-// Importa as interfaces necessárias do ApiService
-import apiService, { ApiError, IncomeType, IncomeTypeRequest } from '../services/ApiService';
+import { Edit, Trash2, X, CheckCircle, AlertCircle } from 'lucide-react';
+import apiService, { ApiError, IncomeType, IncomeTypeRequest, UpdateIncomeTypeRequest } from '../services/ApiService';
 
 const IncomeTypes: React.FC = () => {
   const [form, setForm] = useState({
@@ -9,96 +8,144 @@ const IncomeTypes: React.FC = () => {
     description: ''
   });
 
-  // Estado para armazenar os tipos de renda buscados do backend
   const [incomeTypes, setIncomeTypes] = useState<IncomeType[]>([]);
   const [error, setError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false); // Novo estado de carregamento
+  const [success, setSuccess] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  const [editingId, setEditingId] = useState<number | null>(null);
 
-  // Função para carregar os tipos de renda do backend
   const loadIncomeTypes = async () => {
     setIsLoading(true);
     setError('');
     try {
       const response = await apiService.getIncomeTypes();
-      setIncomeTypes(response.value); // Os tipos de renda estão na propriedade 'value'
-      console.log('Tipos de renda carregados do backend:', response.value);
+      setIncomeTypes(response.value);
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.message || 'Erro ao carregar tipos de renda.');
-      console.error('Erro ao carregar tipos de renda:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Carrega os tipos de renda ao montar o componente
   useEffect(() => {
     loadIncomeTypes();
   }, []);
 
+  const handleEditClick = (type: IncomeType) => {
+    setEditingId(type.id);
+    setForm({
+      name: type.name,
+      description: type.description
+    });
+    setSuccess('');
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setForm({ name: '', description: '' });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true); // Desabilitar o botão enquanto envia
+    setSuccess('');
 
-    if (form.name && form.description) {
-      try {
-        const newIncomeTypeData: IncomeTypeRequest = {
+    // Confirmação para Edição
+    if (editingId) {
+      if (!window.confirm('Tem certeza que deseja salvar as alterações neste tipo de renda?')) {
+        return;
+      }
+    }
+
+    setIsLoading(true);
+    try {
+      if (editingId) {
+        const updateData: UpdateIncomeTypeRequest = {
+          id: editingId,
           name: form.name,
           description: form.description
         };
-
-        await apiService.createIncomeType(newIncomeTypeData);
-
-        // Após criar, recarrega a lista de tipos de renda para exibir o novo item
-        await loadIncomeTypes(); // Recarrega do backend para ter a lista atualizada
-
-        setForm({ name: '', description: '' }); // Limpa o formulário
-        console.log('Tipo de renda salvo com sucesso!');
-      } catch (err) {
-        const apiError = err as ApiError;
-        setError(apiError.message || 'Erro ao salvar tipo de renda.');
-        console.error('Erro ao salvar tipo de renda:', err);
-      } finally {
-        setIsLoading(false); // Reabilitar o botão
+        await apiService.updateIncomeType(updateData);
+        setSuccess('Tipo de renda atualizado com sucesso!');
+      } else {
+        const newData: IncomeTypeRequest = {
+          name: form.name,
+          description: form.description
+        };
+        await apiService.createIncomeType(newData);
+        setSuccess('Tipo de renda cadastrado com sucesso!');
       }
+
+      await loadIncomeTypes();
+      handleCancelEdit();
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message || 'Erro ao processar a requisição.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDelete = (id: number) => {
-    // Lógica para exclusão (seria ideal chamar um endpoint DELETE da API)
-    setIncomeTypes(incomeTypes.filter(item => item.id !== id));
+  const handleDelete = async (id: number) => {
+    // Confirmação para Exclusão
+    if (!window.confirm('Tem certeza que deseja EXCLUIR permanentemente este tipo de renda?')) {
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setIsLoading(true);
+
+    try {
+      await apiService.deleteIncomeType(id);
+      setSuccess('Tipo de renda excluído com sucesso!');
+      await loadIncomeTypes();
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message || 'Erro ao excluir tipo de renda.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Cadastrar Tipos de Renda</h1>
-        <p className="text-gray-600">Gerencie os tipos de renda disponíveis</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          {editingId ? 'Editar Tipo de Renda' : 'Cadastrar Tipos de Renda'}
+        </h1>
+        <p className="text-gray-600">Gerencie os tipos de renda disponíveis para seus lançamentos</p>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex justify-between items-center">
-            <p className="text-red-600 text-sm">{error}</p>
-            <button
-              onClick={() => setError('')}
-              className="text-red-400 hover:text-red-600 ml-2"
-            >
-              ×
-            </button>
-          </div>
+        <div className="flex items-center p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          <AlertCircle className="h-5 w-5 mr-2" />
+          <span className="flex-1 text-sm font-medium">{error}</span>
+          <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
-      {/* Formulário */}
-      <div className="card p-6">
+      {success && (
+        <div className="flex items-center p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+          <CheckCircle className="h-5 w-5 mr-2" />
+          <span className="flex-1 text-sm font-medium">{success}</span>
+          <button onClick={() => setSuccess('')} className="ml-auto text-green-400 hover:text-green-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <div className={`card p-6 border-2 transition-all duration-300 ${editingId ? 'border-primary-500 bg-primary-50/20' : 'border-transparent'}`}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                Nome
-              </label>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
               <input
                 type="text"
                 id="name"
@@ -110,9 +157,7 @@ const IncomeTypes: React.FC = () => {
               />
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                Descrição
-              </label>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
               <textarea
                 id="description"
                 rows={3}
@@ -124,57 +169,51 @@ const IncomeTypes: React.FC = () => {
               />
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end space-x-3">
+            {editingId && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="btn bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2"
+                disabled={isLoading}
+              >
+                Cancelar
+              </button>
+            )}
             <button type="submit" className="btn btn-primary px-6 py-2" disabled={isLoading}>
-              {isLoading ? 'Salvando...' : 'Salvar Tipo de Renda'}
+              {isLoading ? 'Processando...' : editingId ? 'Salvar Alterações' : 'Salvar Tipo de Renda'}
             </button>
           </div>
         </form>
       </div>
 
-      {/* Tabela */}
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Tipos de Renda Cadastrados</h2>
         </div>
         <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-6 text-center text-gray-600">Carregando tipos de renda...</div>
-          ) : incomeTypes.length === 0 ? (
-            <div className="p-6 text-center text-gray-600">Nenhum tipo de renda cadastrado.</div>
+          {isLoading && incomeTypes.length === 0 ? (
+            <div className="p-12 text-center text-gray-500">Carregando dados...</div>
           ) : (
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nome
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Descrição
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ações
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {incomeTypes.map((incomeType) => (
-                  <tr key={incomeType.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {incomeType.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {incomeType.description}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex space-x-2">
-                        <button className="text-primary-600 hover:text-primary-900 transition-colors">
+                {incomeTypes.map((type) => (
+                  <tr key={type.id} className={editingId === type.id ? 'bg-primary-50' : ''}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{type.name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{type.description}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-3">
+                        <button onClick={() => handleEditClick(type)} className="text-primary-600 hover:text-primary-900">
                           <Edit className="h-4 w-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(incomeType.id)}
-                          className="text-red-600 hover:text-red-900 transition-colors"
-                        >
+                        <button onClick={() => handleDelete(type.id)} className="text-red-600 hover:text-red-900">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
