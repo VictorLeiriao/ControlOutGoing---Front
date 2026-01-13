@@ -81,9 +81,22 @@ export interface ExpenseCategoryRequest {
   name: string;
 }
 
+export interface UpdateExpenseCategoryRequest {
+  id: number;
+  name: string;
+}
+
 export interface ExpenseCategoryResponse {
   id?: number;
   name?: string;
+}
+
+export interface UpdateExpenseCategoryResponse {
+  value: ExpenseCategory;
+  formatters: any[];
+  contentTypes: any[];
+  declaredType: null;
+  statusCode: number;
 }
 
 export interface GetExpenseCategoriesResponse {
@@ -361,6 +374,19 @@ class ApiService {
       console.log(`Categoria ${id} excluída com sucesso.`);
     } catch (error) {
       console.error(`Erro ao excluir categoria ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async updateExpenseCategory(categoryData: UpdateExpenseCategoryRequest): Promise<UpdateExpenseCategoryResponse> {
+    try {
+      const response = await this.makeRequest<UpdateExpenseCategoryResponse>('/Category', {
+        method: 'PUT',
+        body: JSON.stringify(categoryData),
+      });
+      return response;
+    } catch (error) {
+      console.error(`Erro ao atualizar categoria ${categoryData.id}:`, error);
       throw error;
     }
   }

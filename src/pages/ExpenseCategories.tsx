@@ -1,7 +1,7 @@
 // src/pages/ExpenseCategories.tsx
 import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, Tag } from 'lucide-react';
-import apiService, { ApiError, ExpenseCategory as ExpenseCategoryType, ExpenseCategoryRequest } from '../services/ApiService';
+import { Edit, Trash2, Check, X } from 'lucide-react';
+import apiService, { ApiError, ExpenseCategory as ExpenseCategoryType, ExpenseCategoryRequest, UpdateExpenseCategoryRequest } from '../services/ApiService';
 
 const ExpenseCategories: React.FC = () => {
   const [form, setForm] = useState({
@@ -9,6 +9,8 @@ const ExpenseCategories: React.FC = () => {
   });
 
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategoryType[]>([]);
+  const [editingCategory, setEditingCategory] = useState<ExpenseCategoryType | null>(null);
+  const [editingName, setEditingName] = useState('');
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -78,6 +80,45 @@ const ExpenseCategories: React.FC = () => {
       const apiError = err as ApiError;
       setError(apiError.message || 'Erro ao excluir categoria de gasto.');
       console.error('Erro ao excluir categoria de gasto:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEdit = (category: ExpenseCategoryType) => {
+    setEditingCategory(category);
+    setEditingName(category.name);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCategory(null);
+    setEditingName('');
+  };
+
+  const handleUpdate = async () => {
+    if (!editingCategory) return;
+
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const updatedCategoryData: UpdateExpenseCategoryRequest = {
+        id: editingCategory.id,
+        name: editingName
+      };
+
+      const response = await apiService.updateExpenseCategory(updatedCategoryData);
+
+      setExpenseCategories(expenseCategories.map(cat =>
+        cat.id === editingCategory.id ? response.value : cat
+      ));
+
+      handleCancelEdit();
+      console.log('Categoria de gasto atualizada com sucesso!', response);
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message || 'Erro ao atualizar categoria de gasto.');
+      console.error('Erro ao atualizar categoria de gasto:', err);
     } finally {
       setIsLoading(false);
     }
@@ -163,19 +204,41 @@ const ExpenseCategories: React.FC = () => {
                 expenseCategories.map((category) => (
                   <tr key={category.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {category.name}
+                    {editingCategory?.id === category.id ? (
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          className="input"
+                        />
+                      ) : (
+                        category.name
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex space-x-2">
-                        <button className="text-primary-600 hover:text-primary-900 transition-colors">
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(category.id)}
-                          className="text-red-600 hover:text-red-900 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      {editingCategory?.id === category.id ? (
+                          <>
+                            <button onClick={handleUpdate} className="text-green-600 hover:text-green-900 transition-colors">
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button onClick={handleCancelEdit} className="text-red-600 hover:text-red-900 transition-colors">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => handleEdit(category)} className="text-primary-600 hover:text-primary-900 transition-colors">
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(category.id)}
+                              className="text-red-600 hover:text-red-900 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
