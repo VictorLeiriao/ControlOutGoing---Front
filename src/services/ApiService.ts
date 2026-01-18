@@ -107,17 +107,20 @@ export interface GetExpenseCategoriesResponse {
   statusCode: number;
 }
 
+// ATUALIZADO: Incluído idDebited no request
 export interface ExpenseRequest {
   description: string;
   value: number;
   date: string; // ISO 8601 format
   idCategory: number;
   idSubCategory: number | null; // Can be null
+  idDebited: number; // Novo campo
 }
 
 export interface ExpenseResponse {
 }
 
+// ATUALIZADO: Incluído idDebited no retorno
 export interface Expense {
   id: number;
   idUser: number;
@@ -126,6 +129,7 @@ export interface Expense {
   date: string;
   idCategory: number;
   idSubCategory: number | null;
+  idDebited: number; // Novo campo
 }
 
 export interface GetExpensesResponse {
@@ -206,7 +210,6 @@ class ApiService {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
-        // Tratamento de erros para capturar o array 'errors' se presente
         let errorMessage = errorData.message || `HTTP Error: ${response.status}`;
         if (errorData.errors && errorData.errors.length > 0) {
           errorMessage = errorData.errors[0].message;
@@ -429,6 +432,8 @@ class ApiService {
     }
   }
 
+  async deleteExpense(id: number) { return this.makeRequest<any>(`/OutGoing/${id}`, { method: 'DELETE' }); }
+
   async getExpenses(dateString?: string): Promise<GetExpensesResponse> {
     try {
       let endpoint = '/OutGoing';
@@ -461,7 +466,7 @@ class ApiService {
     }
   }
 
-  // NOVOS MÉTODOS PARA DEBITADO
+  // MÉTODOS PARA DEBITADO
   async getDebited(): Promise<GetDebitedResponse> {
     return this.makeRequest<GetDebitedResponse>('/Debited', { method: 'GET' });
   }
