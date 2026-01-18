@@ -63,12 +63,6 @@ export interface GetIncomeTypesResponse {
   statusCode: number;
 }
 
-export interface UpdateIncomeTypeRequest {
-  id: number;
-  name: string;
-  description: string;
-}
-
 export interface UserIncomeRequest {
   value: number;
   idIncome: number;
@@ -76,7 +70,6 @@ export interface UserIncomeRequest {
 }
 
 export interface UserIncomeResponse {
-  statusCode?: number;
 }
 
 export interface ExpenseCategory {
@@ -117,9 +110,9 @@ export interface GetExpenseCategoriesResponse {
 export interface ExpenseRequest {
   description: string;
   value: number;
-  date: string;
+  date: string; // ISO 8601 format
   idCategory: number;
-  idSubCategory: number | null;
+  idSubCategory: number | null; // Can be null
 }
 
 export interface ExpenseResponse {
@@ -152,6 +145,24 @@ export interface UserIncome {
 
 export interface GetUserIncomesResponse {
   value: UserIncome[];
+  formatters: any[];
+  contentTypes: any[];
+  declaredType: null;
+  statusCode: number;
+}
+
+// NOVAS INTERFACES PARA DEBITADO
+export interface Debited {
+  id: number;
+  name: string;
+}
+
+export interface DebitedRequest {
+  name: string;
+}
+
+export interface GetDebitedResponse {
+  value: Debited[];
   formatters: any[];
   contentTypes: any[];
   declaredType: null;
@@ -195,14 +206,15 @@ class ApiService {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
-        let errorMessage = errorData.message;
+        // Tratamento de erros para capturar o array 'errors' se presente
+        let errorMessage = errorData.message || `HTTP Error: ${response.status}`;
         if (errorData.errors && errorData.errors.length > 0) {
           errorMessage = errorData.errors[0].message;
         }
 
         throw {
           success: false,
-          message: errorMessage || `HTTP Error: ${response.status}`,
+          message: errorMessage,
           status: response.status,
         } as ApiError;
       }
@@ -226,108 +238,255 @@ class ApiService {
     }
   }
 
-  // --- Auth ---
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const response = await this.makeRequest<LoginResponse>('/user/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
-    if (response.success && response.token) this.setToken(response.token);
-    return response;
+    try {
+      const response = await this.makeRequest<LoginResponse>('/user/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
+
+      if (response.success && response.token) {
+        this.setToken(response.token);
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Erro no login:', error);
+      throw error;
+    }
   }
 
   async register(userData: RegisterRequest): Promise<RegisterResponse> {
-    const response = await this.makeRequest<RegisterResponse>('/User', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
-    if (response.success && response.token) this.setToken(response.token);
-    return response;
+    try {
+      console.log(userData);
+      const response = await this.makeRequest<RegisterResponse>('/User', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
+
+      if (response.success && response.token) {
+        this.setToken(response.token);
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Erro no cadastro:', error);
+      throw error;
+    }
   }
 
   async logout(): Promise<void> {
-    try { await this.makeRequest('/user/logout', { method: 'POST' }); } 
-    finally { this.removeToken(); }
+    try {
+      await this.makeRequest('/user/logout', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('Erro no logout:', error);
+    } finally {
+      this.removeToken();
+    }
   }
 
   async validateToken(): Promise<boolean> {
-    if (!this.token) return false;
+    if (!this.token) {
+      return false;
+    }
+
     try {
-      await this.makeRequest('/user/validate', { method: 'GET' });
+      await this.makeRequest('/user/validate', {
+        method: 'GET',
+      });
       return true;
-    } catch {
+    } catch (error) {
       this.removeToken();
       return false;
     }
   }
 
-  setToken(token: string): void { this.token = token; localStorage.setItem('authToken', token); }
-  getToken(): string | null { return this.token; }
-  removeToken(): void { this.token = null; localStorage.removeItem('authToken'); }
-
-  // --- Income Types ---
-  async createIncomeType(data: IncomeTypeRequest): Promise<IncomeTypeResponse> {
-    return this.makeRequest<IncomeTypeResponse>('/income', { method: 'POST', body: JSON.stringify(data) });
+  setToken(token: string): void {
+    this.token = token;
+    localStorage.setItem('authToken', token);
   }
 
-  async updateIncomeType(data: UpdateIncomeTypeRequest): Promise<{ statusCode: number }> {
-    return this.makeRequest<{ statusCode: number }>('/income', { method: 'PUT', body: JSON.stringify(data) });
+  getToken(): string | null {
+    return this.token;
   }
 
-  async deleteIncomeType(id: number): Promise<{ statusCode: number }> {
-    return this.makeRequest<{ statusCode: number }>(`/income/${id}`, { method: 'DELETE' });
+  removeToken(): void {
+    this.token = null;
+    localStorage.removeItem('authToken');
+  }
+
+  setBaseUrl(url: string): void {
+    this.baseUrl = url;
+  }
+
+  async authenticatedRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    return this.makeRequest<T>(endpoint, options);
+  }
+
+  async createIncomeType(incomeTypeData: IncomeTypeRequest): Promise<IncomeTypeResponse> {
+    try {
+      const response = await this.makeRequest<IncomeTypeResponse>('/income', {
+        method: 'POST',
+        body: JSON.stringify(incomeTypeData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao criar tipo de renda:', error);
+      throw error;
+    }
   }
 
   async getIncomeTypes(): Promise<GetIncomeTypesResponse> {
-    return this.makeRequest<GetIncomeTypesResponse>('/Income', { method: 'GET' });
+    try {
+      const response = await this.makeRequest<GetIncomeTypesResponse>('/Income', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar tipos de renda:', error);
+      throw error;
+    }
   }
 
-  // --- User Incomes ---
-  async createUserIncome(data: UserIncomeRequest): Promise<UserIncomeResponse> {
-    return this.makeRequest<UserIncomeResponse>('/User/userincome', { method: 'POST', body: JSON.stringify(data) });
+  async createUserIncome(incomeData: UserIncomeRequest): Promise<UserIncomeResponse> {
+    try {
+      const response = await this.makeRequest<UserIncomeResponse>('/User/userincome', {
+        method: 'POST',
+        body: JSON.stringify(incomeData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao lançar renda do usuário:', error);
+      throw error;
+    }
   }
 
-  async updateUserIncome(id: number, data: UserIncomeRequest): Promise<{ statusCode: number }> {
-    return this.makeRequest<{ statusCode: number }>(`/user/userIncome/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-  }
-
-  async deleteUserIncome(id: number): Promise<{ statusCode: number }> {
-    return this.makeRequest<{ statusCode: number }>(`/user/userIncome/${id}`, { method: 'DELETE' });
-  }
-
-  async getUserIncomes(dateString?: string): Promise<GetUserIncomesResponse> {
-    let endpoint = '/User/UserIncome';
-    if (dateString) endpoint += `?date=${dateString}`;
-    return this.makeRequest<GetUserIncomesResponse>(endpoint, { method: 'GET' });
-  }
-
-  // --- Expenses & Categories ---
-  async createExpenseCategory(data: ExpenseCategoryRequest): Promise<ExpenseCategoryResponse> {
-    return this.makeRequest<ExpenseCategoryResponse>('/Category', { method: 'POST', body: JSON.stringify(data) });
+  async createExpenseCategory(categoryData: ExpenseCategoryRequest): Promise<ExpenseCategoryResponse> {
+    try {
+      const response = await this.makeRequest<ExpenseCategoryResponse>('/Category', {
+        method: 'POST',
+        body: JSON.stringify(categoryData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao criar categoria de gasto:', error);
+      throw error;
+    }
   }
 
   async getExpenseCategories(): Promise<GetExpenseCategoriesResponse> {
-    return this.makeRequest<GetExpenseCategoriesResponse>('/Category', { method: 'GET' });
+    try {
+      const response = await this.makeRequest<GetExpenseCategoriesResponse>('/Category', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar categorias de gasto:', error);
+      throw error;
+    }
   }
 
   async deleteExpenseCategory(id: number): Promise<void> {
-    await this.makeRequest<void>(`/Category/${id}`, { method: 'DELETE' });
+    try {
+      await this.makeRequest<void>(`/Category/${id}`, {
+        method: 'DELETE',
+      });
+      console.log(`Categoria ${id} excluída com sucesso.`);
+    } catch (error) {
+      console.error(`Erro ao excluir categoria ${id}:`, error);
+      throw error;
+    }
   }
 
-  async updateExpenseCategory(data: UpdateExpenseCategoryRequest): Promise<UpdateExpenseCategoryResponse> {
-    return this.makeRequest<UpdateExpenseCategoryResponse>('/Category', { method: 'PUT', body: JSON.stringify(data) });
+  async updateExpenseCategory(categoryData: UpdateExpenseCategoryRequest): Promise<UpdateExpenseCategoryResponse> {
+    try {
+      const response = await this.makeRequest<UpdateExpenseCategoryResponse>('/Category', {
+        method: 'PUT',
+        body: JSON.stringify(categoryData),
+      });
+      return response;
+    } catch (error) {
+      console.error(`Erro ao atualizar categoria ${categoryData.id}:`, error);
+      throw error;
+    }
   }
 
-  async createExpense(data: ExpenseRequest): Promise<ExpenseResponse> {
-    return this.makeRequest<ExpenseResponse>('/OutGoing', { method: 'POST', body: JSON.stringify(data) });
+  async createExpense(expenseData: ExpenseRequest): Promise<ExpenseResponse> {
+    try {
+      const response = await this.makeRequest<ExpenseResponse>('/OutGoing', {
+        method: 'POST',
+        body: JSON.stringify(expenseData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao criar gasto:', error);
+      throw error;
+    }
   }
 
   async getExpenses(dateString?: string): Promise<GetExpensesResponse> {
-    let endpoint = '/OutGoing';
-    if (dateString) endpoint += `?date=${dateString}`;
-    return this.makeRequest<GetExpensesResponse>(endpoint, { method: 'GET' });
+    try {
+      let endpoint = '/OutGoing';
+      if (dateString) {
+        endpoint += `?date=${dateString}`;
+      }
+      const response = await this.makeRequest<GetExpensesResponse>(endpoint, {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar gastos:', error);
+      throw error;
+    }
+  }
+
+  async getUserIncomes(dateString?: string): Promise<GetUserIncomesResponse> {
+    try {
+      let endpoint = '/User/UserIncome';
+      if (dateString) {
+        endpoint += `?date=${dateString}`;
+      }
+      const response = await this.makeRequest<GetUserIncomesResponse>(endpoint, {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar rendas do usuário:', error);
+      throw error;
+    }
+  }
+
+  // NOVOS MÉTODOS PARA DEBITADO
+  async getDebited(): Promise<GetDebitedResponse> {
+    return this.makeRequest<GetDebitedResponse>('/Debited', { method: 'GET' });
+  }
+
+  async createDebited(data: DebitedRequest): Promise<void> {
+    return this.makeRequest<void>('/Debited', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDebited(id: number, data: DebitedRequest): Promise<void> {
+    return this.makeRequest<void>(`/Debited/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDebited(id: number): Promise<void> {
+    return this.makeRequest<void>(`/Debited/${id}`, {
+      method: 'DELETE',
+    });
   }
 }
 
 const apiService = new ApiService();
+
 export default apiService;

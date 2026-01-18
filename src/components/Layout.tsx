@@ -7,7 +7,8 @@ import {
   Receipt, 
   LogOut,
   Wallet,
-  Tag // Imported Tag icon for Expense Categories
+  Tag,
+  CreditCard // Ícone para Debitado
 } from 'lucide-react';
 import apiService from '../services/ApiService';
 
@@ -24,7 +25,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
     { name: 'Tipos de Renda', href: '/income-types', icon: TrendingUp },
     { name: 'Rendas', href: '/income', icon: DollarSign },
     { name: 'Gastos', href: '/expenses', icon: Receipt },
-    { name: 'Categorias de Gastos', href: '/expense-categories', icon: Tag }, // New navigation item
+    { name: 'Categorias de Gastos', href: '/expense-categories', icon: Tag },
+    { name: 'Debitado', href: '/debited', icon: CreditCard }, // Novo item de navegação
   ];
 
   const handleLogout = async () => {
@@ -33,7 +35,6 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
       onLogout();
     } catch (error) {
       console.error('Erro no logout:', error);
-      // Mesmo com erro, faz logout local
       onLogout();
     }
   };

@@ -5,7 +5,8 @@ import Dashboard from './pages/Dashboard';
 import IncomeTypes from './pages/IncomeTypes';
 import Income from './pages/Income';
 import Expenses from './pages/Expenses';
-import ExpenseCategories from './pages/ExpenseCategories'; // Import the new component
+import ExpenseCategories from './pages/ExpenseCategories';
+import Debited from './pages/Debited'; // Importando a nova aba
 import Layout from './components/Layout';
 
 function App() {
@@ -81,13 +82,25 @@ function App() {
               )
             } 
           />
-          {/* New Route for Expense Categories */}
           <Route 
             path="/expense-categories" 
             element={
               isAuthenticated ? (
                 <Layout onLogout={handleLogout}>
                   <ExpenseCategories />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" replace />
+              )
+            } 
+          />
+          {/* Nova Rota para Debitado */}
+          <Route 
+            path="/debited" 
+            element={
+              isAuthenticated ? (
+                <Layout onLogout={handleLogout}>
+                  <Debited />
                 </Layout>
               ) : (
                 <Navigate to="/auth" replace />
