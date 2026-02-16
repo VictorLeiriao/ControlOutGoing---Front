@@ -110,10 +110,10 @@ export interface GetExpenseCategoriesResponse {
 export interface ExpenseRequest {
   description: string;
   value: number;
-  date: string; 
+  date: string; // ISO 8601 format
   idCategory: number;
   idSubCategory: number | null;
-  idDebited: number;
+  idDebited: number; 
 }
 
 export interface ExpenseResponse {
@@ -153,16 +153,13 @@ export interface GetUserIncomesResponse {
   statusCode: number;
 }
 
-// INTERFACES PARA DEBITADO (ATUALIZADAS COM VALUE)
 export interface Debited {
   id: number;
   name: string;
-  value: number; // Novo campo
 }
 
 export interface DebitedRequest {
   name: string;
-  value: number; // Novo campo
 }
 
 export interface GetDebitedResponse {
@@ -173,24 +170,24 @@ export interface GetDebitedResponse {
   statusCode: number;
 }
 
-// NOVAS INTERFACES PARA DASHBOARD POR DÉBITO
-export interface OutGoingItem {
-  idOutGoing: number;
-  outGoingDesciption: string;
+// INTERFACES PARA INVESTIMENTOS
+export interface InvestmentItem {
+  idInvestment: number;
+  descriptionInvestment: string;
   value: number;
 }
 
-export interface OutgoingPerDebited {
-  idDebited: number;
-  debitedName: string;
-  value: number;
-  valueReached: number;
+export interface InvestmentPerType {
+  idInvestmentType: number;
+  descriptionInvestmentType: string;
+  value: number; // Meta/Objetivo
+  valueReached: number; // Valor já investido
   percentage: number;
-  expenses: OutGoingItem[];
+  investments: InvestmentItem[];
 }
 
-export interface GetOutgoingPerDebitedResponse {
-  value: OutgoingPerDebited[];
+export interface GetInvestmentsPerTypeResponse {
+  value: InvestmentPerType[];
   formatters: any[];
   contentTypes: any[];
   declaredType: null;
@@ -343,70 +340,145 @@ class ApiService {
     localStorage.removeItem('authToken');
   }
 
+  setBaseUrl(url: string): void {
+    this.baseUrl = url;
+  }
+
+  async authenticatedRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    return this.makeRequest<T>(endpoint, options);
+  }
+
   async createIncomeType(incomeTypeData: IncomeTypeRequest): Promise<IncomeTypeResponse> {
-    return this.makeRequest<IncomeTypeResponse>('/income', {
-      method: 'POST',
-      body: JSON.stringify(incomeTypeData),
-    });
+    try {
+      const response = await this.makeRequest<IncomeTypeResponse>('/income', {
+        method: 'POST',
+        body: JSON.stringify(incomeTypeData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao criar tipo de renda:', error);
+      throw error;
+    }
   }
 
   async getIncomeTypes(): Promise<GetIncomeTypesResponse> {
-    return this.makeRequest<GetIncomeTypesResponse>('/Income', { method: 'GET' });
+    try {
+      const response = await this.makeRequest<GetIncomeTypesResponse>('/Income', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar tipos de renda:', error);
+      throw error;
+    }
   }
 
   async createUserIncome(incomeData: UserIncomeRequest): Promise<UserIncomeResponse> {
-    return this.makeRequest<UserIncomeResponse>('/User/userincome', {
-      method: 'POST',
-      body: JSON.stringify(incomeData),
-    });
+    try {
+      const response = await this.makeRequest<UserIncomeResponse>('/User/userincome', {
+        method: 'POST',
+        body: JSON.stringify(incomeData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao lançar renda do usuário:', error);
+      throw error;
+    }
   }
 
   async createExpenseCategory(categoryData: ExpenseCategoryRequest): Promise<ExpenseCategoryResponse> {
-    return this.makeRequest<ExpenseCategoryResponse>('/Category', {
-      method: 'POST',
-      body: JSON.stringify(categoryData),
-    });
+    try {
+      const response = await this.makeRequest<ExpenseCategoryResponse>('/Category', {
+        method: 'POST',
+        body: JSON.stringify(categoryData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao criar categoria de gasto:', error);
+      throw error;
+    }
   }
 
   async getExpenseCategories(): Promise<GetExpenseCategoriesResponse> {
-    return this.makeRequest<GetExpenseCategoriesResponse>('/Category', { method: 'GET' });
+    try {
+      const response = await this.makeRequest<GetExpenseCategoriesResponse>('/Category', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar categorias de gasto:', error);
+      throw error;
+    }
   }
 
   async deleteExpenseCategory(id: number): Promise<void> {
-    return this.makeRequest<void>(`/Category/${id}`, { method: 'DELETE' });
+    try {
+      await this.makeRequest<void>(`/Category/${id}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.error(`Erro ao excluir categoria ${id}:`, error);
+      throw error;
+    }
   }
 
   async updateExpenseCategory(categoryData: UpdateExpenseCategoryRequest): Promise<UpdateExpenseCategoryResponse> {
-    return this.makeRequest<UpdateExpenseCategoryResponse>('/Category', {
-      method: 'PUT',
-      body: JSON.stringify(categoryData),
-    });
+    try {
+      const response = await this.makeRequest<UpdateExpenseCategoryResponse>('/Category', {
+        method: 'PUT',
+        body: JSON.stringify(categoryData),
+      });
+      return response;
+    } catch (error) {
+      console.error(`Erro ao atualizar categoria ${categoryData.id}:`, error);
+      throw error;
+    }
   }
 
   async createExpense(expenseData: ExpenseRequest): Promise<ExpenseResponse> {
-    return this.makeRequest<ExpenseResponse>('/OutGoing', {
-      method: 'POST',
-      body: JSON.stringify(expenseData),
-    });
+    try {
+      const response = await this.makeRequest<ExpenseResponse>('/OutGoing', {
+        method: 'POST',
+        body: JSON.stringify(expenseData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao criar gasto:', error);
+      throw error;
+    }
   }
 
-  async deleteExpense(id: number) { 
-    return this.makeRequest<any>(`/OutGoing/${id}`, { method: 'DELETE' }); 
-  }
+  async deleteExpense(id: number) { return this.makeRequest<any>(`/OutGoing/${id}`, { method: 'DELETE' }); }
 
   async getExpenses(dateString?: string): Promise<GetExpensesResponse> {
-    let endpoint = '/OutGoing';
-    if (dateString) endpoint += `?date=${dateString}`;
-    return this.makeRequest<GetExpensesResponse>(endpoint, { method: 'GET' });
+    try {
+      let endpoint = '/OutGoing';
+      if (dateString) {
+        endpoint += `?date=${dateString}`;
+      }
+      return await this.makeRequest<GetExpensesResponse>(endpoint, { method: 'GET' });
+    } catch (error) {
+      console.error('Erro ao buscar gastos:', error);
+      throw error;
+    }
   }
 
   async getUserIncomes(dateString?: string): Promise<GetUserIncomesResponse> {
-    let endpoint = '/User/UserIncome';
-    if (dateString) endpoint += `?date=${dateString}`;
-    return this.makeRequest<GetUserIncomesResponse>(endpoint, { method: 'GET' });
+    try {
+      let endpoint = '/User/UserIncome';
+      if (dateString) {
+        endpoint += `?date=${dateString}`;
+      }
+      return await this.makeRequest<GetUserIncomesResponse>(endpoint, { method: 'GET' });
+    } catch (error) {
+      console.error('Erro ao buscar rendas do usuário:', error);
+      throw error;
+    }
   }
 
-  // MÉTODOS PARA DEBITADO (ATUALIZADOS)
   async getDebited(): Promise<GetDebitedResponse> {
     return this.makeRequest<GetDebitedResponse>('/Debited', { method: 'GET' });
   }
@@ -426,13 +498,22 @@ class ApiService {
   }
 
   async deleteDebited(id: number): Promise<void> {
-    return this.makeRequest<void>(`/Debited/${id}`, { method: 'DELETE' });
+    return this.makeRequest<void>(`/Debited/${id}`, {
+      method: 'DELETE',
+    });
   }
 
-  async getOutgoingPerDebited(dateString: string): Promise<GetOutgoingPerDebitedResponse> {
-    return this.makeRequest<GetOutgoingPerDebitedResponse>(`/Dashboard/outgoingperdebited?date=${dateString}`, {
-      method: 'GET',
-    });
+  async getInvestmentsPerType(dateString?: string): Promise<GetInvestmentsPerTypeResponse> {
+    try {
+      let endpoint = '/dashboard/investmentpertype';
+      if (dateString) {
+        endpoint += `?date=${dateString}`;
+      }
+      return await this.makeRequest<GetInvestmentsPerTypeResponse>(endpoint, { method: 'GET' });
+    } catch (error) {
+      console.error('Erro ao buscar investimentos por tipo:', error);
+      throw error;
+    }
   }
 }
 
