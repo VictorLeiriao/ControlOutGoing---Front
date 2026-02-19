@@ -194,6 +194,25 @@ export interface GetInvestmentsPerTypeResponse {
   statusCode: number;
 }
 
+export interface InvestmentType {
+  id: number;
+  description: string;
+  value: number;
+}
+
+export interface InvestmentTypeRequest {
+  description: string;
+  value: number;
+}
+
+export interface GetInvestmentTypesResponse {
+  value: InvestmentType[];
+  formatters: any[];
+  contentTypes: any[];
+  declaredType: null;
+  statusCode: number;
+}
+
 class ApiService {
   private baseUrl: string;
   private token: string | null = null;
@@ -515,6 +534,36 @@ class ApiService {
       throw error;
     }
   }
+
+  // MÉTODOS PARA TIPO DE INVESTIMENTO
+  async getInvestmentTypes(): Promise<GetInvestmentTypesResponse> {
+    return this.makeRequest<GetInvestmentTypesResponse>('/Investment/InvestmentType', { 
+      method: 'GET' 
+    });
+  }
+
+  async createInvestmentType(data: InvestmentTypeRequest): Promise<void> {
+    return this.makeRequest<void>('/Investment/InvestmentType', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateInvestmentType(id: number, data: InvestmentTypeRequest): Promise<void> {
+    return this.makeRequest<void>(`/Investment/InvestmentType/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteInvestmentType(id: number): Promise<void> {
+    return this.makeRequest<void>(`/Investment/InvestmentType/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+
+
 }
 
 const apiService = new ApiService();

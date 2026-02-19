@@ -6,8 +6,9 @@ import IncomeTypes from './pages/IncomeTypes';
 import Income from './pages/Income';
 import Expenses from './pages/Expenses';
 import ExpenseCategories from './pages/ExpenseCategories';
-import Debited from './pages/Debited'; // Importando a nova aba
+import Debited from './pages/Debited'; 
 import Layout from './components/Layout';
+import InvestmentTypes from './pages/InvestmentTypes'; 
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -24,6 +25,7 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Routes>
+          {/* Rota de Autenticação */}
           <Route 
             path="/auth" 
             element={
@@ -34,6 +36,8 @@ function App() {
               )
             } 
           />
+
+          {/* Rota Dashboard */}
           <Route 
             path="/dashboard" 
             element={
@@ -46,6 +50,8 @@ function App() {
               )
             } 
           />
+
+          {/* Rota Tipos de Renda */}
           <Route 
             path="/income-types" 
             element={
@@ -58,6 +64,8 @@ function App() {
               )
             } 
           />
+
+          {/* Rota Rendas */}
           <Route 
             path="/income" 
             element={
@@ -70,6 +78,8 @@ function App() {
               )
             } 
           />
+
+          {/* Rota Gastos */}
           <Route 
             path="/expenses" 
             element={
@@ -82,6 +92,8 @@ function App() {
               )
             } 
           />
+
+          {/* Rota Categorias de Gastos */}
           <Route 
             path="/expense-categories" 
             element={
@@ -94,7 +106,8 @@ function App() {
               )
             } 
           />
-          {/* Nova Rota para Debitado */}
+
+          {/* Rota Debitado */}
           <Route 
             path="/debited" 
             element={
@@ -107,7 +120,24 @@ function App() {
               )
             } 
           />
+
+          {/* Nova Rota para Tipos de Investimento (Protegida) */}
+          <Route 
+            path="/investment-types" 
+            element={
+              isAuthenticated ? (
+                <Layout onLogout={handleLogout}>
+                  <InvestmentTypes />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" replace />
+              )
+            } 
+          />
+
+          {/* Redirecionamentos de Fallback */}
           <Route path="/" element={<Navigate to="/auth" replace />} />
+          <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/auth"} replace />} />
         </Routes>
       </div>
     </Router>
