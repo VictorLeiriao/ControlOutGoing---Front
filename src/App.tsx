@@ -9,6 +9,7 @@ import ExpenseCategories from './pages/ExpenseCategories';
 import Debited from './pages/Debited'; 
 import Layout from './components/Layout';
 import InvestmentTypes from './pages/InvestmentTypes'; 
+import Investments from './pages/Investments';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -121,13 +122,27 @@ function App() {
             } 
           />
 
-          {/* Nova Rota para Tipos de Investimento (Protegida) */}
+          {/* Rota para Tipos de Investimento */}
           <Route 
             path="/investment-types" 
             element={
               isAuthenticated ? (
                 <Layout onLogout={handleLogout}>
                   <InvestmentTypes />
+                </Layout>
+              ) : (
+                <Navigate to="/auth" replace />
+              )
+            } 
+          />
+
+          {/* Nova Rota para Lançamento de Investimentos */}
+          <Route 
+            path="/investments" 
+            element={
+              isAuthenticated ? (
+                <Layout onLogout={handleLogout}>
+                  <Investments />
                 </Layout>
               ) : (
                 <Navigate to="/auth" replace />

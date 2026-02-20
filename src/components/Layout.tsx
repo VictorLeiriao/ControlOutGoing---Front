@@ -9,7 +9,8 @@ import {
   Wallet,
   Tag,
   CreditCard,
-  BarChart3 // Ícone para Debitado
+  BarChart3,
+  LineChart
 } from 'lucide-react';
 import apiService from '../services/ApiService';
 
@@ -28,7 +29,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
     { name: 'Gastos', href: '/expenses', icon: Receipt },
     { name: 'Categorias de Gastos', href: '/expense-categories', icon: Tag },
     { name: 'Debitado', href: '/debited', icon: CreditCard }, 
-    { name: 'Tipos de Investimento', href: '/investment-types', icon: BarChart3 }, // Ajustado para href
+    { name: 'Tipos de Investimento', href: '/investment-types', icon: BarChart3 },
+    { name: 'Investimentos', href: '/investments', icon: LineChart },
   ];
 
   const handleLogout = async () => {
